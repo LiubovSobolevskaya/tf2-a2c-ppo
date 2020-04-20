@@ -1,0 +1,7 @@
+num_processes: 8
+num_steps: 128
+ppo_epoch: 4
+num_mini_batch: 4
+learning_rate: 2.5e-4
+clip_param: 0.1
+gae_lambda: 0.95

@@ -1,71 +1,8 @@
 """Actor Critic class for A2C"""
 import tensorflow as tf
-import tensorflow_probability as tfp
 import tensorflow_addons as tfa
 
-
-class Model(tf.keras.Model):
-    """
-        Conv Neural Network for A2C.
-        Architecure taken from Openai Baselines.
-
-        Args:
-            action_dim (int): number of possible actions/Actor's outputs
-    """
-    def __init__(self, action_dim):
-
-        relu_gain = tf.math.sqrt(2.0)
-        relu_init = tf.initializers.Orthogonal(gain=relu_gain)
-
-        super(Model, self).__init__()
-        self.main = tf.keras.Sequential([
-            tf.keras.layers.Conv2D(32,
-                                   input_shape=(84, 84, 4),
-                                   kernel_size=(8, 8),
-                                   strides=4,
-                                   activation='relu',
-                                   kernel_initializer=relu_init),
-            tf.keras.layers.Conv2D(64,
-                                   kernel_size=(4, 4),
-                                   activation='relu',
-                                   strides=2,
-                                   kernel_initializer=relu_init),
-            tf.keras.layers.Conv2D(32,
-                                   kernel_size=(3, 3),
-                                   activation='relu',
-                                   strides=1,
-                                   kernel_initializer=relu_init),
-            tf.keras.layers.Flatten(),
-            tf.keras.layers.Dense(512,
-                                  activation='relu',
-                                  kernel_initializer=relu_init)
-            
-        ])
-        self.actor = tf.keras.Sequential([
-            tf.keras.layers.Dense(
-                action_dim,
-                activation=None,
-                kernel_initializer=tf.initializers.Orthogonal(gain=0.01))
-        ])
-
-        self.critic = tf.keras.Sequential([
-            tf.keras.layers.Dense(1,
-                                  activation=None,
-                                  kernel_initializer='orthogonal')
-        ])
-
-    @tf.function
-    def call(self, states):
-
-        main = self.main(states, training=True)
-
-        value = tf.squeeze(self.critic(main), axis=1)
-        actor_features = self.actor(main)
-        dist = tfp.distributions.Categorical(logits=actor_features)
-        action = dist.sample()
-
-        action_log_probs = dist.log_prob(action)
-        return action, action_log_probs, dist.entropy(), value
+from model import Model
 
 
 class A2C():
@@ -83,8 +20,8 @@ class A2C():
         Returns:
             bool: The return value. True for success, False otherwise.
     """
-    def __init__(self, obs_shape, action_n, learning_rate, entropy_coef,
-                 value_loss_coef, gamma, num_steps):
+    def __init__(self, obs_shape, action_n, entropy_coef, value_loss_coef,
+                 gamma, num_steps, learning_rate):
 
         self.num_steps = num_steps
 
@@ -114,7 +51,7 @@ class A2C():
             Args:
                 env_step (function): Numpy enviroment function that performs enviroment step.
                 get_obs (function): Numpy enviroment function that returns current observations.
-                
+
             Returns:
                  Value loss, Action_loss and Entropy_loss.
         """
@@ -131,6 +68,7 @@ class A2C():
 
         with tf.GradientTape() as tape:
             for j in range(self.num_steps):
+
                 action, log_prob, entropy, value = self.model(obs)
                 obs, reward, done = tf.numpy_function(func=env_step,
                                                       inp=[action],
